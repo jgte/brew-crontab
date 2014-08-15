@@ -9,7 +9,7 @@ else
 fi
 
 #needed of this script is called from crontab
-PATH="/usr/local/bin:$PATH"
+PATH="/usr/local/bin:/usr/local/sbin:$PATH"
 
 #need to know current dir
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
@@ -98,5 +98,5 @@ do
   [ -z "$FB" ] || echo -e "brew $i:\n$FB"
 done
 
-#call the doctors
+#call the doctor
 FB=`$BREW doctor` || echo $FB
