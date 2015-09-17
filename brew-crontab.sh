@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -u
 
 #parameters
 if [[ ! "${@/--debug/}" == "$@" ]]
@@ -28,12 +28,12 @@ fi
 #check if BREW is installed
 [ $DEBUG == false ] && ( brew -v > /dev/null || ruby -e "$(curl -fsSL https://raw.github.com/mxcl/homebrew/go/install)" )
 
-PACKAGES_FILE="$DIR/brew.packages.list"
+PACKAGES_FILE="$DIR/brew-crontab.packages.list"
 if [ -e "$PACKAGES_FILE" ]
 then
   IFS_SAVE=$IFS
   IFS=$'\r\n'; GLOBIGNORE='*';
-  PACKAGES=(`cat "$PACKAGES_FILE" `)
+  PACKAGES=(`grep -v ^# "$PACKAGES_FILE" `)
   IFS=$IFS_SAVE
   #check if all packages are installed
   for ((i = 0 ; i < ${#PACKAGES[@]} ; i++))
@@ -56,17 +56,16 @@ else
   [ $DEBUG == true ] && echo "WARNING: Could not find packages file '$PACKAGES_FILE'."
 fi
 
-PACKAGES_FILE="$DIR/brew.packages-xcode.list"
+PACKAGES_FILE="$DIR/brew-crontab.packages-xcode.list"
 if [ -e "$PACKAGES_FILE" ]
 then
-  PACKAGES=(`grep -v ^# "$PACKAGES_FILE"`)
   #check if full xcode is installed
   xcodebuild -v &> /dev/null && INSTALL_MORE_PACKAGES=true || INSTALL_MORE_PACKAGES=false
   if [ $INSTALL_MORE_PACKAGES == true ]
   then
     IFS_SAVE=$IFS
     IFS=$'\r\n'; GLOBIGNORE='*';
-    PACKAGES=(`cat "$PACKAGES_FILE" `)
+    PACKAGES=(`grep -v ^# "$PACKAGES_FILE" `)
     IFS=$IFS_SAVE
     #check if all packages are installed
     for ((i = 0 ; i < ${#PACKAGES[@]} ; i++))
@@ -92,7 +91,8 @@ fi
 $BREW update > /dev/null || exit $?
 
 #more stuff to do
-for i in upgrade cleanup missing outdated
+# for i in upgrade cleanup missing outdated
+for i in "upgrade --all" missing outdated
 do
   FB=`$BREW $i` || exit $?
   [ -z "$FB" ] || echo -e "brew $i:\n$FB"
