@@ -1,7 +1,7 @@
 #!/bin/bash -u
 
 #parameters
-if [[ ! "${@/--debug/}" == "$@" ]]
+if [[ ! "${@/debug/}" == "$@" ]]
 then
   DEBUG=true
 else
@@ -23,14 +23,27 @@ else
 fi
 
 #check if command line tools is installed
-[ $DEBUG == false ] && ( xcode-select -p > /dev/null || xcode-select --install )
+[ $DEBUG == false ] && ( xcode-select -p &> /dev/null || xcode-select --install )
 
 #check if BREW is installed
-[ $DEBUG == false ] && ( brew -v > /dev/null || ruby -e "$(curl -fsSL https://raw.github.com/mxcl/homebrew/go/install)" )
+[ $DEBUG == false ] && ( brew -v &> /dev/null || /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)" )
 
-PACKAGES_FILE="$DIR/brew-crontab.packages.list"
-if [ -e "$PACKAGES_FILE" ]
-then
+
+for PACKAGES_FILE in $(find "$DIR" -name brew.packages\*.list)
+do
+  #assume this list of packages is to be installed
+  INSTALL_MORE_PACKAGES=true
+  #check if particular requirements of some list of packages are met
+  if [[ ! "${PACKAGES_FILE/xcode/}" == "$PACKAGES_FILE" ]]
+  then
+    #check if xcode is installed
+    xcode-select -v &> /dev/null || INSTALL_MORE_PACKAGES=false
+  fi
+  #add more package list requirements here
+
+  #check if all requirements are met, if not skip this list
+  $INSTALL_MORE_PACKAGES || continue
+  #proceed with installation
   IFS_SAVE=$IFS
   IFS=$'\r\n'; GLOBIGNORE='*';
   PACKAGES=(`grep -v ^# "$PACKAGES_FILE" `)
@@ -44,7 +57,7 @@ then
     [ -z "$PKG" ] && continue
     #remove arguments from package name
     PKG_SHORT=${PKG% .*}
-    if [ -z "`brew ls --versions $PKG_SHORT`" ]
+    if [ -z "`brew ls --version $PKG_SHORT 2> /dev/null`" ]
     then
       [ $DEBUG == true ] && echo Installing $PKG_SHORT
       $BREW install $PKG || exit $?
@@ -52,47 +65,14 @@ then
       [ $DEBUG == true ] && echo Package already installed: $PKG_SHORT
     fi
   done
-else
-  [ $DEBUG == true ] && echo "WARNING: Could not find packages file '$PACKAGES_FILE'."
-fi
-
-PACKAGES_FILE="$DIR/brew-crontab.packages-xcode.list"
-if [ -e "$PACKAGES_FILE" ]
-then
-  #check if full xcode is installed
-  xcodebuild -v &> /dev/null && INSTALL_MORE_PACKAGES=true || INSTALL_MORE_PACKAGES=false
-  if [ $INSTALL_MORE_PACKAGES == true ]
-  then
-    IFS_SAVE=$IFS
-    IFS=$'\r\n'; GLOBIGNORE='*';
-    PACKAGES=(`grep -v ^# "$PACKAGES_FILE" `)
-    IFS=$IFS_SAVE
-    #check if all packages are installed
-    for ((i = 0 ; i < ${#PACKAGES[@]} ; i++))
-    do
-      #get this package name
-      PKG=${PACKAGES[i]%#*}
-      #skip lines that are only comments
-      [ -z "$PKG" ] && continue
-      #remove arguments from package name
-      PKG_SHORT=${PKG% .*}
-      if [ -z "`brew ls --versions $PKG_SHORT`" ]
-      then
-        [ $DEBUG == true ] && echo Installing $PKG_SHORT
-        $BREW install $PKG || exit $?
-      else
-        [ $DEBUG == true ] && echo Package already installed: $PKG_SHORT
-      fi
-    done
-  fi
-fi
+done
 
 #update formulas
 $BREW update > /dev/null || exit $?
 
 #more stuff to do
 # for i in upgrade cleanup missing outdated
-for i in "upgrade --all" missing outdated
+for i in upgrade missing outdated
 do
   FB=`$BREW $i` || exit $?
   [ -z "$FB" ] || echo -e "brew $i:\n$FB"
