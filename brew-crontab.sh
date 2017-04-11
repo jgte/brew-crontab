@@ -22,6 +22,7 @@ else
   BREW="brew"
 fi
 
+
 #check if command line tools is installed
 [ $DEBUG == false ] && ( xcode-select -p &> /dev/null || xcode-select --install )
 
@@ -29,7 +30,7 @@ fi
 [ $DEBUG == false ] && ( brew -v &> /dev/null || /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)" )
 
 
-for PACKAGES_FILE in $(find "$DIR" -name brew.packages\*.list)
+for PACKAGES_FILE in $(find "$DIR" -name brew.packages\*.list | sort -u)
 do
   #assume this list of packages is to be installed
   INSTALL_MORE_PACKAGES=true
@@ -57,7 +58,7 @@ do
     [ -z "$PKG" ] && continue
     #remove arguments from package name
     PKG_SHORT=${PKG% .*}
-    if [ -z "`brew ls --version $PKG_SHORT 2> /dev/null`" ]
+    if [ -z "`$BREW ls --version $PKG_SHORT 2> /dev/null`" ]
     then
       [ $DEBUG == true ] && echo Installing $PKG_SHORT
       $BREW install $PKG || exit $?
@@ -76,6 +77,16 @@ for i in upgrade missing outdated
 do
   FB=`$BREW $i` || exit $?
   [ -z "$FB" ] || echo -e "brew $i:\n$FB"
+done
+
+KEEP=$(cat $(find "$DIR" -name brew.packages-keep-outdated.list))
+for i in $(brew list)
+do
+  if [[ "${KEEP/$i/}" == "$KEEP" ]]
+  then
+    FB=`$BREW cleanup $i` || exit $?
+    [ -z "$FB" ] || echo -e "brew $i:\n$FB"
+  fi
 done
 
 #call the doctor
