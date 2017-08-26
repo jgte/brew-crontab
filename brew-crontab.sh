@@ -15,20 +15,13 @@ PATH="/usr/local/bin:/usr/local/sbin:$PATH"
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 #enforce debug mode
-if [ $DEBUG == true ]
-then
-  BREW="echo brew"
-else
-  BREW="brew"
-fi
-
+$DEBUG && BREW="echo brew" || BREW="brew"
 
 #check if command line tools is installed
-[ $DEBUG == false ] && ( xcode-select -p &> /dev/null || xcode-select --install )
+$DEBUG || ( xcode-select -p &> /dev/null || xcode-select --install )
 
 #check if BREW is installed
-[ $DEBUG == false ] && ( brew -v &> /dev/null || /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)" )
-
+$DEBUG || ( brew -v &> /dev/null || /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)" )
 
 for PACKAGES_FILE in $(find "$DIR" -name brew.packages\*.list | sort -u)
 do
@@ -60,10 +53,10 @@ do
     PKG_SHORT=${PKG% .*}
     if [ -z "`$BREW ls --version $PKG_SHORT 2> /dev/null`" ]
     then
-      [ $DEBUG == true ] && echo Installing $PKG_SHORT
+      $DEBUG && echo Installing $PKG_SHORT
       $BREW install $PKG || exit $?
     else
-      [ $DEBUG == true ] && echo Package already installed: $PKG_SHORT
+      $DEBUG && echo Package already installed: $PKG_SHORT
     fi
   done
 done
