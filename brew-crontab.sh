@@ -50,13 +50,20 @@ do
     #skip lines that are only comments
     [ -z "$PKG" ] && continue
     #remove arguments from package name
-    PKG_SHORT=${PKG% .*}
-    if [ -z "`$BREW ls --version $PKG_SHORT 2> /dev/null`" ]
+    PKG_SHORT=${PKG%% *}
+    #check if this is a cask
+    if [[ ! "${PKG_SHORT/cask}" == "$PKG_SHORT" ]]
+    then
+      PKG_VERSION=$($BREW cask ls --versions $PKG_SHORT 2> /dev/null)
+    else
+      PKG_VERSION=$($BREW ls --versions $PKG_SHORT 2> /dev/null)
+    fi
+    if [ -z "$PKG_VERSION" ]
     then
       $DEBUG && echo Installing $PKG_SHORT
       $BREW install $PKG || exit $?
     else
-      $DEBUG && echo Package already installed: $PKG_SHORT
+      $DEBUG && echo Package already installed: $PKG_VERSION
     fi
   done
 done
@@ -65,10 +72,9 @@ done
 $BREW update > /dev/null || exit $?
 
 #more stuff to do
-# for i in upgrade cleanup missing outdated
 for i in upgrade missing outdated
 do
-  FB=`$BREW $i` || exit $?
+  FB=$($BREW $i) || exit $?
   [ -z "$FB" ] || echo -e "brew $i:\n$FB"
 done
 
@@ -77,8 +83,8 @@ for i in $(brew list)
 do
   if [[ "${KEEP/$i/}" == "$KEEP" ]]
   then
-    FB=`$BREW cleanup $i` || exit $?
-    [ -z "$FB" ] || echo -e "brew $i:\n$FB"
+    FB=$($BREW cleanup $i) || exit $?
+    [ -z "$FB" ] || echo -e "brew cleanup $i:\n$FB"
   fi
 done
 
