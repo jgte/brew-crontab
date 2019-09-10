@@ -22,16 +22,9 @@ unison240
 wakeonlan
 watch
 wget
-xpdf
-gettext #needed to compile some stuff
-# kdiff3 #is deprecated in favour of diffmerge (manual install)
-# merge #is deprecated in favour of diffmerge (manual install)
-# ghostscript #needed for matlab
-# git #is already available from apple
 tig
 subversion
 # osxfuse #better get it from https://osxfuse.github.io/
 # sshfs #better get it from https://osxfuse.github.io/
 encfs
 cask
-diffuse # quite a lot of heavy dependencies
