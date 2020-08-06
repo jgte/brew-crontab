@@ -1,21 +1,28 @@
-#!/bin/bash -u
+#!/bin/bash -uo pipefail
 
 #parameters
-if [[ ! "${@/debug/}" == "$@" ]]
-then
-  DEBUG=true
-else
-  DEBUG=false
-fi
+DEBUG=false
+BREW="brew"
+for i in "$@"
+do
+  case "$i" in
+    debug)
+      DEBUG=true
+    ;;
+    echo)
+      BREW="echo brew"
+    ;;
+    -x)
+      set -x
+    ;;
+  esac
+done
 
 #needed of this script is called from crontab
 PATH="/usr/local/bin:/usr/local/sbin:$PATH"
 
 #need to know current dir
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-
-#enforce debug mode
-$DEBUG && BREW="echo brew" || BREW="brew"
 
 #check if command line tools is installed
 $DEBUG || ( xcode-select -p &> /dev/null || xcode-select --install )
