@@ -67,10 +67,10 @@ do
     fi
     if [ -z "$PKG_VERSION" ]
     then
-      $DEBUG && echo Installing $PKG_SHORT
+      $DEBUG && echo "==== Installing $PKG_SHORT ===="
       $BREW install $PKG || exit $?
     else
-      $DEBUG && echo Package already installed: $PKG_VERSION
+      $DEBUG && echo "==== Package already installed: $PKG_VERSION ===="
     fi
   done
 done
@@ -81,8 +81,15 @@ $BREW update > /dev/null || exit $?
 #more stuff to do
 for i in upgrade missing outdated
 do
-  FB=$($BREW $i) || exit $?
+  $DEBUG && echo "==== Issuing brew $i ===="
+  FB=$($BREW $i | grep -v 'No Casks to upgrade') || exit $?
   [ -z "$FB" ] || echo -e "brew $i:\n$FB"
+done
+for i in  outdated
+do
+  $DEBUG && echo "==== Issuing brew cask $i ===="
+  FB=$($BREW cask $i) || exit $?
+  [ -z "$FB" ] || echo -e "brew cask $i:\n$FB"
 done
 
 KEEP=$(cat $(find "$DIR" -name brew.packages-keep-outdated.list))
@@ -90,10 +97,12 @@ for i in $(brew list)
 do
   if [[ "${KEEP/$i/}" == "$KEEP" ]]
   then
+    $DEBUG && echo "==== Issuing brew cleanup $i ===="
     FB=$($BREW cleanup $i) || exit $?
     [ -z "$FB" ] || echo -e "brew cleanup $i:\n$FB"
   fi
 done
 
 #call the doctor
-FB=`$BREW doctor` || echo $FB
+$DEBUG && echo "==== Issuing brew doctor ===="
+FB=$($BREW doctor) || echo "$FB"
