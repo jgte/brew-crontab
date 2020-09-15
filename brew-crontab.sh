@@ -1,28 +1,57 @@
 #!/bin/bash -uo pipefail
 
-#parameters
-DEBUG=false
-BREW="brew"
-for i in "$@"
-do
-  case "$i" in
-    debug)
-      DEBUG=true
-    ;;
-    echo)
-      BREW="echo brew"
-    ;;
-    -x)
-      set -x
-    ;;
-  esac
-done
-
 #needed of this script is called from crontab
 PATH="/usr/local/bin:/usr/local/sbin:$PATH"
 
 #need to know current dir
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+#parameters
+DEBUG=false
+BREW="brew"
+LIST_PREFIX=brew-crontab
+for i in "$@"
+do
+  case "$i" in
+    options) #shows all available options
+      grep ') #' $BASH_SOURCE \
+        | grep -v grep \
+        | sed 's:)::g' \
+        | column -t -s\#
+      exit
+    ;;
+    -x) #turns on the -x bash option
+      set -x
+    ;;
+    debug) #shows what is being done and the value of some variables
+      DEBUG=true
+    ;;
+    echo) #shows which commands would have been issued, but don't
+      BREW="echo brew"
+    ;;
+    list-prefix) #sets the prefix of the packages.list files, defaults to brew-crontab
+      LIST_PREFIX=${i/list-prefix}
+    ;;
+    help)
+      echo "\
+$BASH_SOURCE [ ... ]
+
+Keeps brew packages up to date. The packages are kept in two lists:
+- brew-crontab.packages.list
+- brew-crontab.packages-xcode.list
+The difference is that the packages-xcode.list ensures xcode is installed; if that is not possible, then none of those packages are installed.
+
+If is also possible to define a list of packages that is not to be updated in:
+- brew-crontab.packages-keep-outdated.list
+
+All lists should reside in the same directory as this script ($DIR).
+
+Optional input arguments are:"
+      $BASH_SOURCE options
+      exit
+    ;;
+  esac
+done
 
 #check if command line tools is installed
 $DEBUG || ( xcode-select -p &> /dev/null || xcode-select --install )
@@ -30,8 +59,9 @@ $DEBUG || ( xcode-select -p &> /dev/null || xcode-select --install )
 #check if BREW is installed
 $DEBUG || ( brew -v &> /dev/null || /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)" )
 
-for PACKAGES_FILE in $(find "$DIR" -name brew.packages\*.list | sort -u)
+for PACKAGES_FILE in $(find "$DIR" -name $LIST_PREFIX.packages\*.list | sort -u)
 do
+  $DEBUG && echo "PACKAGES_FILE: $PACKAGES_FILE"
   #assume this list of packages is to be installed
   INSTALL_MORE_PACKAGES=true
   #check if particular requirements of some list of packages are met
@@ -82,17 +112,18 @@ $BREW update > /dev/null || exit $?
 for i in upgrade missing outdated
 do
   $DEBUG && echo "==== Issuing brew $i ===="
-  FB=$($BREW $i | grep -v 'No Casks to upgrade') || exit $?
+  FB=$($BREW $i) || exit $?
+  FB=$(echo "$FB" | grep -v 'No Casks to upgrade' || true)
   [ -z "$FB" ] || echo -e "brew $i:\n$FB"
 done
-for i in  outdated
+for i in upgrade outdated
 do
   $DEBUG && echo "==== Issuing brew cask $i ===="
-  FB=$($BREW cask $i) || exit $?
-  [ -z "$FB" ] || echo -e "brew cask $i:\n$FB"
+  FB=$($BREW $i --cask) || exit $?
+  [ -z "$FB" ] || echo -e "brew $i --cask:\n$FB"
 done
 
-KEEP=$(cat $(find "$DIR" -name brew.packages-keep-outdated.list))
+KEEP=$(cat $(find "$DIR" -name $LIST_PREFIX.packages-keep-outdated.list))
 for i in $(brew list)
 do
   if [[ "${KEEP/$i/}" == "$KEEP" ]]
