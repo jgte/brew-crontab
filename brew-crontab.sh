@@ -124,7 +124,7 @@ do
 done
 
 KEEP=$(cat $(find "$DIR" -name $LIST_PREFIX.packages-keep-outdated.list))
-for i in $(brew list)
+for i in $(brew list --formula)
 do
   if [[ "${KEEP/$i/}" == "$KEEP" ]]
   then
