@@ -36,13 +36,17 @@ do
       echo "\
 $BASH_SOURCE [ ... ]
 
-Keeps brew packages up to date. The packages are kept in two lists:
-- brew-crontab.packages.list
-- brew-crontab.packages-xcode.list
-The difference is that the packages-xcode.list ensures xcode is installed; if that is not possible, then none of those packages are installed.
+Keeps brew packages up to date. The packages are kept in lists with names $LIST_PREFIX.packages\*.list. The lists are loaded alphabetically.
 
-If is also possible to define a list of packages that is not to be updated in:
-- brew-crontab.packages-keep-outdated.list
+These lists contain one package name per line, comments are allowed after '#' and with any necessary install argument following, e.g.:
+curl
+gnuplot --with-x11 --with-pdflib-lite --with-wxmac
+rsync #OSX's rsync is out of date
+
+This script considers 3 lists:
+- brew-crontab.packages.list: nothing special about this list
+- brew-crontab.packages-xcode.list: ensures xcode is installed; if that is not possible, then none of these packages are installed.
+- brew-crontab.packages-keep-outdated.list: packages here are not to be updated
 
 All lists should reside in the same directory as this script ($DIR).
 
@@ -88,13 +92,11 @@ do
     [ -z "$PKG" ] && continue
     #remove arguments from package name
     PKG_SHORT=${PKG%% *}
-    #check if this is a cask
-    if [[ ! "${PKG_SHORT/cask}" == "$PKG_SHORT" ]]
-    then
-      PKG_VERSION=$($BREW cask ls --versions $PKG_SHORT 2> /dev/null)
-    else
-      PKG_VERSION=$($BREW ls --versions $PKG_SHORT 2> /dev/null)
-    fi
+    #get package version, try cask first, fallback to non-cask
+    PKG_VERSION=$(
+      $BREW ls --cask --version ${PKG_SHORT/homebrew\/cask\//} 2> /dev/null \
+      || $BREW ls --version $PKG_SHORT 2> /dev/null
+    )
     if [ -z "$PKG_VERSION" ]
     then
       $DEBUG && echo "==== Installing $PKG_SHORT ===="
@@ -118,21 +120,26 @@ do
 done
 for i in upgrade outdated
 do
-  $DEBUG && echo "==== Issuing brew cask $i ===="
+  $DEBUG && echo "==== Issuing brew $i --cask ===="
   FB=$($BREW $i --cask) || exit $?
   [ -z "$FB" ] || echo -e "brew $i --cask:\n$FB"
 done
 
-KEEP=$(cat $(find "$DIR" -name $LIST_PREFIX.packages-keep-outdated.list))
-for i in $(brew list --formula)
-do
-  if [[ "${KEEP/$i/}" == "$KEEP" ]]
-  then
-    $DEBUG && echo "==== Issuing brew cleanup $i ===="
-    FB=$($BREW cleanup $i) || exit $?
-    [ -z "$FB" ] || echo -e "brew cleanup $i:\n$FB"
-  fi
-done
+if [ -s "$DIR/$LIST_PREFIX.packages-keep-outdated.list" ]
+then
+  KEEP=$(cat $DIR/$LIST_PREFIX.packages-keep-outdated.list)
+  for i in $(brew list --formula)
+  do
+    if [[ "${KEEP/$i/}" == "$KEEP" ]]
+    then
+      $DEBUG && echo "==== Issuing brew cleanup $i ===="
+      FB=$($BREW cleanup $i) || exit $?
+      [ -z "$FB" ] || echo -e "brew cleanup $i:\n$FB"
+    else
+      $DEBUG && echo "==== Not cleaning up $i ===="
+    fi
+  done
+fi
 
 #call the doctor
 $DEBUG && echo "==== Issuing brew doctor ===="

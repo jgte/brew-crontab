@@ -1,6 +1,9 @@
 brew-crontab
 ============
 
+NOTICE: this script is pretty much outdated as a result of `brew bundle`.
+
+
 This is a simple script that keeps brew updated and healthy, suitable for crontab. Stick it in a cloud folder, add it to the crontab of all your machines and keep your brew packages up to date and consistent.
 
 List files
